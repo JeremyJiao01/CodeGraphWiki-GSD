@@ -81,15 +81,17 @@ grep -n "type=\"checkpoint" [plan-path]
 <step name="pre_task_codebase_lookup">
 Before executing each `type="auto"` task, do a quick codebase lookup if code-graph-builder is available.
 
-**Purpose:** Find exact file locations, existing function signatures, and callers — before writing any code.
+**Assumption: The codebase index is pre-built in `~/.code-graph-builder/`.** Do NOT call `initialize_repository`. Just query the existing index.
+
+**Purpose:** Find exact API locations, existing function signatures, and callers — before writing any code.
 
 **Quick lookup (15-30 seconds, high ROI):**
 
-1. **Find existing code to modify:**
+1. **Find APIs relevant to this task:**
    ```bash
-   python3 ~/.claude/commands/code-graph/cgb_cli.py search "<task topic>" --top-k 3
+   python3 ~/.claude/commands/code-graph/cgb_cli.py api-find "<task topic or feature>" --top-k 5
    ```
-   Use the result to confirm the file/function you're about to edit actually exists.
+   Returns function signatures + call graphs. Use these to identify the exact files and functions to modify or call.
 
 2. **Get exact function location before modifying:**
    ```bash
@@ -106,11 +108,34 @@ Before executing each `type="auto"` task, do a quick codebase lookup if code-gra
 **Skip lookup if:** the task is creating entirely new files with no similar patterns in the codebase.
 </step>
 
+<step name="learn_code_style">
+Before writing or modifying any code in a file, read the existing file content to learn its style.
+
+**Purpose:** Match the existing code style, formatting conventions, and patterns of each file being modified — do not impose your own defaults.
+
+**For every file you will modify or extend:**
+1. Read the full file (or relevant sections if large) using the Read tool
+2. Observe and match:
+   - **Indentation:** tabs vs spaces, indent width
+   - **Naming conventions:** camelCase, snake_case, PascalCase for variables/functions/classes
+   - **Import style:** named imports, default imports, import ordering
+   - **Function style:** arrow functions vs `function` keyword, async patterns
+   - **Comment style:** JSDoc, inline comments, docstrings format
+   - **Error handling patterns:** try/catch style, error propagation approach
+   - **Type annotation style** (if typed language): explicit vs inferred, generics style
+   - **File structure:** how exports are organized, where constants live
+
+**Rule:** When in doubt, copy the pattern from the nearest existing similar code in the same file. Never introduce a new style convention that isn't already present in the file.
+
+**Skip if:** creating a brand-new file with no existing content — in that case, match conventions from the most similar file in the same directory.
+</step>
+
 <step name="execute_tasks">
 For each task:
 
 1. **If `type="auto"`:**
-   - Run pre_task_codebase_lookup (above) for all tasks
+   - Run pre_task_codebase_lookup (above) to find relevant APIs
+   - Run learn_code_style (above) for each file you will modify
    - Check for `tdd="true"` → follow TDD execution flow
    - Execute task, apply deviation rules as needed
    - Handle auth errors as authentication gates

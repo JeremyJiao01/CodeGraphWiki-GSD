@@ -114,25 +114,27 @@ When researching "best library for X": find what the ecosystem actually uses, do
 
 Before any external research, check what already exists in the codebase.
 
-**Check if repo is indexed:**
+**Assumption: The codebase index is pre-built and stored in `~/.code-graph-builder/`.** Do NOT call `initialize_repository` or rebuild the database. Just query the existing index.
+
+**Check if current project is indexed:**
 ```bash
 python3 ~/.claude/commands/code-graph/cgb_cli.py info
 ```
-If not indexed, skip CodeGraphWiki tools and proceed to Context7/WebSearch.
+If the project is not found in the index, skip CodeGraphWiki tools and proceed to Context7/WebSearch.
 
 **Key commands:**
 | Command | When to Use |
 |---------|-------------|
-| `cgb_cli.py search "..."` | Find existing implementations ("authentication middleware", "payment handler") |
-| `cgb_cli.py api-find "..."` | Find relevant APIs + their signatures and call graphs in one call |
+| `cgb_cli.py api-find "..."` | **Primary: Find APIs matching requirements** — returns signatures + call graphs |
+| `cgb_cli.py search "..."` | Find existing implementations by topic ("authentication middleware") |
 | `cgb_cli.py query "..."` | Understand call relationships ("what calls X?", "what does module Y depend on?") |
 | `cgb_cli.py get-wiki <page_id>` | Read architectural wiki pages about the codebase |
 | `cgb_cli.py list-wiki` | Discover available wiki pages |
 
 **Research flow with CodeGraphWiki:**
-1. `cgb_cli.py search "phase topic"` — find existing related code
-2. `cgb_cli.py api-find "pattern or service"` — discover APIs already in codebase
-3. `cgb_cli.py query "how is X connected to Y?"` — understand relationships
+1. `cgb_cli.py api-find "<requirement or feature>"` — **start here**: find all APIs relevant to this phase's requirements. Run once per major requirement group.
+2. `cgb_cli.py search "phase topic"` — supplement with semantic search if api-find misses something
+3. `cgb_cli.py query "how is X connected to Y?"` — understand relationships between discovered APIs
 4. Include findings in RESEARCH.md under a `## Existing Codebase Patterns` section
 
 **Critical:** If codebase already has an implementation of what's being planned, the researcher MUST document it. The planner should extend existing patterns rather than re-implement.
