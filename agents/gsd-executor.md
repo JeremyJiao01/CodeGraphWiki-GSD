@@ -88,20 +88,20 @@ Before executing each `type="auto"` task, do a quick codebase lookup if code-gra
 **Quick lookup (15-30 seconds, high ROI):**
 
 1. **Find APIs relevant to this task:**
-   ```bash
-   python3 ~/.claude/commands/code-graph/cgb_cli.py api-find "<task topic or feature>" --top-k 5
+   ```
+   /code-graph:api-find "<task topic or feature>"
    ```
    Returns function signatures + call graphs. Use these to identify the exact files and functions to modify or call.
 
 2. **Get exact function location before modifying:**
-   ```bash
-   python3 ~/.claude/commands/code-graph/cgb_cli.py locate <file_path> <function_name>
+   ```
+   /code-graph:code-locate <file_path> <function_name>
    ```
    Gives start/end line numbers — reference these in your edits instead of searching.
 
 3. **Impact check before changing a function:**
-   ```bash
-   python3 ~/.claude/commands/code-graph/cgb_cli.py query "what functions call <function_name>?"
+   ```
+   /code-graph:graph-query "what functions call <function_name>?"
    ```
    If callers exist, include them in your verification step.
 

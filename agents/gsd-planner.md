@@ -116,12 +116,12 @@ For brownfield codebases, **always search before planning**. The answer to most 
 
 Before creating any plan task, run:
 
-```bash
+```
 # Find existing interfaces that match the phase goal
-python3 ~/.claude/commands/code-graph/cgb_cli.py api-find "<phase goal>"
+/code-graph:api-find "<phase goal>"
 
 # Understand calling order and dependencies
-python3 ~/.claude/commands/code-graph/cgb_cli.py query "what must be called before <function>?"
+/code-graph:graph-query "what must be called before <function>?"
 ```
 
 **Plans MUST reference existing interfaces by name.** If a requirement can be met by composing existing functions, the plan's `<action>` should specify exactly which functions and in what order — not describe the logic abstractly.
@@ -1000,19 +1000,19 @@ cat .planning/codebase/INDEX.md
 | (default) | architecture overview, project structure |
 
 Read the 2-3 most relevant pages:
-```bash
-python3 ~/.claude/commands/code-graph/cgb_cli.py get-wiki {relevant_page_id}
+```
+/code-graph:wiki-read {relevant_page_id}
 ```
 
 **3. Targeted semantic search** for the specific phase topic — finds the actual files and patterns to reference in plans:
-```bash
-python3 ~/.claude/commands/code-graph/cgb_cli.py search "{phase_name} {phase_goal}" --top-k 5
+```
+/code-graph:code-search "{phase_name} {phase_goal}"
 ```
 Use results to confirm file locations and existing patterns before writing `<files>` and `<action>` in tasks.
 
 **4. Find existing APIs** if the phase extends or integrates with existing functionality:
-```bash
-python3 ~/.claude/commands/code-graph/cgb_cli.py api-find "{phase_topic}"
+```
+/code-graph:api-find "{phase_topic}"
 ```
 Use returned signatures and call graphs to write precise `<action>` instructions in plan tasks.
 

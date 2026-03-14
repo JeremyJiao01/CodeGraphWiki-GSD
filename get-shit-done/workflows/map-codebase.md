@@ -71,21 +71,17 @@ This builds the knowledge graph, vector embeddings, and wiki pages.
 Estimated time: 2-10 minutes depending on repo size.
 ```
 
-Call the MCP tool:
+Invoke the Skill:
 
 ```
-mcp__code-graph-builder__initialize_repository(
-  repo_path="{REPO_PATH}",
-  rebuild=<true if user selected Rebuild, false otherwise>,
-  wiki_mode="comprehensive"
-)
+/code-graph:repo-init repo_path="{REPO_PATH}" rebuild=<true if user selected Rebuild, false otherwise> wiki_mode="comprehensive"
 ```
 
-Wait for completion. The tool returns a summary with graph stats and wiki page count.
+Wait for completion. The Skill returns a summary with graph stats and wiki page count.
 
-If the tool returns an error:
-- "Repository not indexed" or similar → check that code-graph-builder MCP is configured in ~/.claude/settings.json
-- LLM/embedding errors → check API keys in MCP server env config
+If the Skill returns an error:
+- "Repository not indexed" or similar → check that code-graph-builder is configured correctly
+- LLM/embedding errors → check API keys in the configuration
 - Report error to user with actionable next steps
 
 Continue to pull_wiki_pages on success.
@@ -101,19 +97,19 @@ mkdir -p .planning/codebase/wiki
 
 **List available pages:**
 ```
-mcp__code-graph-builder__list_wiki_pages()
+/code-graph:wiki-list
 ```
 
 **For each page in the list, fetch and write:**
 ```
-page_content = mcp__code-graph-builder__get_wiki_page(page_id="{page_id}")
+/code-graph:wiki-read {page_id}
 ```
 
 Write content to `.planning/codebase/wiki/{page_id}.md` using the Write tool.
 
 Also fetch and write the index page:
 ```
-index_content = mcp__code-graph-builder__get_wiki_page(page_id="index")
+/code-graph:wiki-read index
 ```
 Write to `.planning/codebase/wiki/index.md`.
 
@@ -125,7 +121,7 @@ Write .planning/codebase/INDEX.md — a quick-reference guide for GSD planning a
 
 **Get repo info for stats:**
 ```
-mcp__code-graph-builder__get_repository_info()
+/code-graph:repo-info
 ```
 
 **Write the file:**
@@ -144,19 +140,19 @@ mcp__code-graph-builder__get_repository_info()
 
 ## How to Query the Codebase
 
-The knowledge graph and vector embeddings are available via the code-graph-builder MCP tools.
+The knowledge graph and vector embeddings are available via CodeGraphWiki Skills.
 
 **Find existing implementations (semantic search):**
-Use `mcp__code-graph-builder__semantic_search` with a natural language query.
+Use `/code-graph:code-search` with a natural language query.
 
 **Find APIs with full call graph:**
-Use `mcp__code-graph-builder__find_api` — returns signatures + callers/callees.
+Use `/code-graph:api-find` — returns signatures + callers/callees.
 
 **Understand relationships:**
-Use `mcp__code-graph-builder__query_code_graph` for natural language graph queries.
+Use `/code-graph:graph-query` for natural language graph queries.
 
 **Get exact source location:**
-Use `mcp__code-graph-builder__locate_function` to get file path + line numbers.
+Use `/code-graph:code-locate` to get file path + line numbers.
 
 ## Refreshing the Index
 
