@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基于约束式执行的 AI 代码开发实践</title>
+    <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400;500;600;700&f[]=cabinet-grotesk@700;800&display=swap">
+    <style>
+        /* ===========================================
+           CSS CUSTOM PROPERTIES (THEME: Electric Studio)
+           =========================================== */
+        :root {
+            /* Colors */
+            --bg-primary: #f5f0eb;
+            --bg-card: #ffffff;
+            --bg-dark: #1a1a2e;
+            --text-primary: #1a1a2e;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            --accent: #2563eb;
+            --accent-light: rgba(37, 99, 235, 0.08);
+            --accent-mid: rgba(37, 99, 235, 0.15);
+            --green: #10b981;
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --border: rgba(26, 26, 46, 0.08);
+
+            /* Typography */
+            --font-display: 'Cabinet Grotesk', sans-serif;
+            --font-body: 'General Sans', sans-serif;
+            --title-size: clamp(2rem, 6vw, 4.5rem);
+            --h2-size: clamp(1.5rem, 4vw, 2.8rem);
+            --h3-size: clamp(1.1rem, 2.5vw, 1.6rem);
+            --body-size: clamp(0.8rem, 1.4vw, 1.05rem);
+            --small-size: clamp(0.65rem, 1vw, 0.85rem);
+            --code-size: clamp(0.65rem, 1.1vw, 0.85rem);
+
+            /* Spacing */
+            --slide-padding: clamp(1.5rem, 5vw, 5rem);
+            --content-gap: clamp(0.75rem, 2vw, 2rem);
+            --element-gap: clamp(0.4rem, 1vw, 1rem);
+
+            /* Animation */
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --duration: 0.7s;
+        }
+
+        /* ===========================================
+           BASE STYLES
+           =========================================== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html {
+            scroll-behavior: smooth;
+            scroll-snap-type: y mandatory;
+            height: 100%;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            height: 100%;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ===========================================
+           SLIDE CONTAINER
+           =========================================== */
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            padding: var(--slide-padding);
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-height: 100%;
+            overflow: hidden;
+        }
+
+        /* ===========================================
+           DECORATIVE SHAPES
+           =========================================== */
+        .shape {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .shape-blue {
+            background: var(--accent);
+            opacity: 0.07;
+        }
+
+        .shape-amber {
+            background: var(--amber);
+            opacity: 0.1;
+        }
+
+        .shape-green {
+            background: var(--green);
+            opacity: 0.08;
+        }
+
+        /* ===========================================
+           TYPOGRAPHY
+           =========================================== */
+        h1 {
+            font-family: var(--font-display);
+            font-size: var(--title-size);
+            font-weight: 800;
+            line-height: 1.08;
+            letter-spacing: -0.03em;
+            color: var(--text-primary);
+        }
+
+        h2 {
+            font-family: var(--font-display);
+            font-size: var(--h2-size);
+            font-weight: 700;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+        }
+
+        h3 {
+            font-family: var(--font-display);
+            font-size: var(--h3-size);
+            font-weight: 700;
+            line-height: 1.3;
+            letter-spacing: -0.01em;
+        }
+
+        p, li {
+            font-size: var(--body-size);
+            line-height: 1.6;
+            color: var(--text-secondary);
+        }
+
+        .highlight {
+            color: var(--accent);
+            position: relative;
+        }
+
+        .highlight::after {
+            content: '';
+            position: absolute;
+            bottom: 0.05em;
+            left: 0;
+            width: 100%;
+            height: 0.12em;
+            background: var(--accent);
+            opacity: 0.2;
+            border-radius: 2px;
+        }
+
+        .eyebrow {
+            font-size: var(--small-size);
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: clamp(0.5rem, 1.5vh, 1.5rem);
+        }
+
+        .divider {
+            width: 60px;
+            height: 4px;
+            background: var(--accent);
+            border-radius: 2px;
+            margin: clamp(0.75rem, 1.5vh, 1.5rem) 0;
+        }
+
+        /* ===========================================
+           CARD COMPONENTS
+           =========================================== */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: clamp(1rem, 2vw, 1.75rem);
+            transition: transform 0.3s var(--ease-out-expo), box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+        }
+
+        .card-icon {
+            width: clamp(32px, 4vw, 44px);
+            height: clamp(32px, 4vw, 44px);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1rem, 2vw, 1.3rem);
+            margin-bottom: clamp(0.5rem, 1vh, 0.75rem);
+        }
+
+        .card h3 {
+            margin-bottom: clamp(0.25rem, 0.5vh, 0.5rem);
+        }
+
+        .card p {
+            font-size: var(--small-size);
+            line-height: 1.5;
+        }
+
+        /* ===========================================
+           CODE BLOCKS
+           =========================================== */
+        .code-block {
+            background: var(--bg-dark);
+            color: #e5e7eb;
+            border-radius: 10px;
+            padding: clamp(0.75rem, 2vw, 1.5rem);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: var(--code-size);
+            line-height: 1.6;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .code-block .code-header {
+            font-size: var(--small-size);
+            color: var(--text-muted);
+            margin-bottom: clamp(0.4rem, 1vh, 0.75rem);
+            padding-bottom: clamp(0.3rem, 0.5vh, 0.5rem);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .code-block .keyword { color: #c084fc; }
+        .code-block .string { color: #86efac; }
+        .code-block .comment { color: #6b7280; font-style: italic; }
+        .code-block .fn { color: #93c5fd; }
+        .code-block .type { color: #fbbf24; }
+        .code-block .number { color: #f9a8d4; }
+
+        /* ===========================================
+           GRID LAYOUTS
+           =========================================== */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: clamp(0.75rem, 2vw, 1.5rem);
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: clamp(0.75rem, 2vw, 1.5rem);
+        }
+
+        /* ===========================================
+           FLOW DIAGRAM
+           =========================================== */
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.5rem, 1.5vw, 1rem);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .flow-step {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: clamp(0.6rem, 1.2vw, 1rem) clamp(0.8rem, 1.5vw, 1.5rem);
+            font-size: var(--small-size);
+            font-weight: 600;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .flow-step.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .flow-arrow {
+            font-size: clamp(0.8rem, 1.5vw, 1.2rem);
+            color: var(--text-muted);
+        }
+
+        /* ===========================================
+           BULLET LIST
+           =========================================== */
+        .bullet-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.4rem, 1vh, 0.8rem);
+        }
+
+        .bullet-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: clamp(0.5rem, 1vw, 0.75rem);
+            font-size: var(--body-size);
+        }
+
+        .bullet-list li::before {
+            content: '';
+            flex-shrink: 0;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            margin-top: 0.5em;
+        }
+
+        /* ===========================================
+           SPECIAL SLIDES
+           =========================================== */
+        .slide-dark {
+            background: var(--bg-dark);
+            color: #e5e7eb;
+        }
+
+        .slide-dark h2,
+        .slide-dark h3 {
+            color: #ffffff;
+        }
+
+        .slide-dark p,
+        .slide-dark li {
+            color: #9ca3af;
+        }
+
+        .slide-dark .eyebrow {
+            color: #60a5fa;
+        }
+
+        .slide-dark .divider {
+            background: #60a5fa;
+        }
+
+        .slide-dark .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .slide-dark .card h3 {
+            color: #e5e7eb;
+        }
+
+        .slide-dark .card p {
+            color: #9ca3af;
+        }
+
+        /* ===========================================
+           QUOTE BLOCK
+           =========================================== */
+        .quote-block {
+            border-left: 4px solid var(--accent);
+            padding-left: clamp(1rem, 2vw, 2rem);
+            font-size: clamp(1rem, 2vw, 1.5rem);
+            font-family: var(--font-display);
+            font-weight: 700;
+            line-height: 1.4;
+            color: var(--text-primary);
+        }
+
+        /* ===========================================
+           TAG / BADGE
+           =========================================== */
+        .tag {
+            display: inline-block;
+            font-size: var(--small-size);
+            font-weight: 600;
+            padding: 0.3em 0.8em;
+            border-radius: 6px;
+            background: var(--accent-light);
+            color: var(--accent);
+        }
+
+        .tag-green {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--green);
+        }
+
+        .tag-amber {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--amber);
+        }
+
+        /* ===========================================
+           ANIMATIONS
+           =========================================== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(25px);
+            transition: opacity var(--duration) var(--ease-out-expo),
+                        transform var(--duration) var(--ease-out-expo);
+        }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-30px);
+            transition: opacity var(--duration) var(--ease-out-expo),
+                        transform var(--duration) var(--ease-out-expo);
+        }
+
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.92);
+            transition: opacity var(--duration) var(--ease-out-expo),
+                        transform var(--duration) var(--ease-out-expo);
+        }
+
+        .slide.visible .reveal,
+        .slide.visible .reveal-left,
+        .slide.visible .reveal-scale {
+            opacity: 1;
+            transform: translateY(0) translateX(0) scale(1);
+        }
+
+        .slide.visible .reveal:nth-child(1),
+        .slide.visible .reveal-left:nth-child(1) { transition-delay: 0.1s; }
+        .slide.visible .reveal:nth-child(2),
+        .slide.visible .reveal-left:nth-child(2) { transition-delay: 0.2s; }
+        .slide.visible .reveal:nth-child(3),
+        .slide.visible .reveal-left:nth-child(3) { transition-delay: 0.3s; }
+        .slide.visible .reveal:nth-child(4),
+        .slide.visible .reveal-left:nth-child(4) { transition-delay: 0.4s; }
+        .slide.visible .reveal:nth-child(5) { transition-delay: 0.5s; }
+        .slide.visible .reveal:nth-child(6) { transition-delay: 0.6s; }
+
+        /* ===========================================
+           PROGRESS BAR
+           =========================================== */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: var(--accent);
+            z-index: 100;
+            transition: width 0.3s ease;
+        }
+
+        /* ===========================================
+           NAVIGATION DOTS
+           =========================================== */
+        .nav-dots {
+            position: fixed;
+            right: clamp(12px, 2vw, 24px);
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .nav-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            opacity: 0.3;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            padding: 0;
+        }
+
+        .nav-dot.active {
+            opacity: 1;
+            background: var(--accent);
+            transform: scale(1.3);
+        }
+
+        /* ===========================================
+           SLIDE COUNTER
+           =========================================== */
+        .slide-counter {
+            position: fixed;
+            bottom: clamp(12px, 2vw, 24px);
+            right: clamp(12px, 3vw, 32px);
+            font-size: var(--small-size);
+            font-weight: 600;
+            color: var(--text-muted);
+            z-index: 100;
+        }
+
+        .slide-counter .current {
+            color: var(--accent);
+            font-size: clamp(0.85rem, 1.2vw, 1rem);
+        }
+
+        /* ===========================================
+           RESPONSIVE BREAKPOINTS
+           =========================================== */
+        @media (max-height: 700px) {
+            :root {
+                --slide-padding: clamp(1rem, 3vw, 2.5rem);
+                --content-gap: clamp(0.5rem, 1.5vw, 1rem);
+                --title-size: clamp(1.5rem, 5vw, 3rem);
+                --h2-size: clamp(1.25rem, 3.5vw, 2rem);
+            }
+        }
+
+        @media (max-height: 600px) {
+            :root {
+                --slide-padding: clamp(0.75rem, 2.5vw, 1.5rem);
+                --content-gap: clamp(0.4rem, 1vw, 0.75rem);
+                --title-size: clamp(1.25rem, 4.5vw, 2.2rem);
+                --body-size: clamp(0.7rem, 1.2vw, 0.9rem);
+            }
+            .nav-dots, .decorative { display: none; }
+        }
+
+        @media (max-height: 500px) {
+            :root {
+                --slide-padding: clamp(0.5rem, 2vw, 1rem);
+                --title-size: clamp(1.1rem, 4vw, 1.8rem);
+                --h2-size: clamp(1rem, 3vw, 1.5rem);
+                --body-size: clamp(0.65rem, 1vw, 0.8rem);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+            .flow {
+                flex-direction: column;
+            }
+            .flow-arrow {
+                transform: rotate(90deg);
+            }
+        }
+
+        @media (max-width: 600px) {
+            :root {
+                --title-size: clamp(1.5rem, 8vw, 2.5rem);
+            }
+            .grid-2, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+            html { scroll-behavior: auto; }
+        }
+
+        /* ===========================================
+           TWO-COLUMN LAYOUT
+           =========================================== */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(1.5rem, 3vw, 3rem);
+            align-items: center;
+        }
+
+        @media (max-width: 768px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ===========================================
+           STEP INDICATOR
+           =========================================== */
+        .step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: clamp(28px, 3vw, 36px);
+            height: clamp(28px, 3vw, 36px);
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            font-weight: 700;
+            font-size: var(--small-size);
+            flex-shrink: 0;
+        }
+
+        /* ===========================================
+           CONVERSATION BLOCK
+           =========================================== */
+        .convo {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.4rem, 1vh, 0.75rem);
+        }
+
+        .convo-item {
+            display: flex;
+            align-items: flex-start;
+            gap: clamp(0.5rem, 1vw, 0.75rem);
+        }
+
+        .convo-label {
+            font-size: var(--small-size);
+            font-weight: 700;
+            flex-shrink: 0;
+            padding: 0.15em 0.5em;
+            border-radius: 4px;
+            margin-top: 0.15em;
+        }
+
+        .convo-label.gsd {
+            background: var(--accent-light);
+            color: var(--accent);
+        }
+
+        .convo-label.dev {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--green);
+        }
+
+        .convo-text {
+            font-size: var(--small-size);
+            line-height: 1.5;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Progress Bar -->
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- Navigation Dots -->
+<nav class="nav-dots" id="navDots"></nav>
+
+<!-- Slide Counter -->
+<div class="slide-counter">
+    <span class="current" id="currentSlide">01</span> / <span id="totalSlides">18</span>
+</div>
+
+<!-- ===========================================
+     SLIDE 1: TITLE
+     =========================================== -->
+<section class="slide" data-slide="0">
+    <div class="shape shape-blue" style="width:400px;height:400px;top:-100px;right:-80px;"></div>
+    <div class="shape shape-amber" style="width:250px;height:250px;bottom:40px;left:-60px;"></div>
+    <div class="shape shape-green" style="width:150px;height:150px;bottom:-30px;right:18%;"></div>
+    <div class="slide-content">
+        <div class="eyebrow reveal">AI-Powered Development</div>
+        <h1 class="reveal">基于<span class="highlight">约束式执行</span>的<br>AI 代码开发实践</h1>
+        <div class="divider reveal"></div>
+        <p class="reveal" style="max-width:550px;font-size:var(--body-size);">用结构化上下文驯服 AI —— 让它在正确的边界内写出正确的代码</p>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 2: THE HARD PROBLEM
+     =========================================== -->
+<section class="slide" data-slide="1">
+    <div class="slide-content">
+        <div class="eyebrow reveal">问题的起点</div>
+        <h2 class="reveal">比新建项目更难的事：<br><span class="highlight">在存量代码库上加功能</span></h2>
+        <div class="divider reveal"></div>
+        <p class="reveal" style="max-width:600px;">代码库已积累大量历史决策和隐性约定。<br>新需求到来时，开发者打开 AI 工具，把文件粘贴进去，然后问题来了——</p>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 3: THREE PROBLEMS
+     =========================================== -->
+<section class="slide" data-slide="2">
+    <div class="slide-content">
+        <div class="eyebrow reveal">三个核心痛点</div>
+        <div class="grid-3 reveal" style="margin-top:var(--content-gap);">
+            <div class="card">
+                <div class="card-icon" style="background:rgba(239,68,68,0.1);color:var(--red);">?</div>
+                <h3>不知道从哪里改</h3>
+                <p>函数调用错综复杂，AI 没有完整结构上下文，修改建议忽略上下游依赖</p>
+            </div>
+            <div class="card">
+                <div class="card-icon" style="background:rgba(245,158,11,0.1);color:var(--amber);">~</div>
+                <h3>代码格格不入</h3>
+                <p>AI 没有风格上下文，生成的代码功能可能对，但风格像另一个人写的</p>
+            </div>
+            <div class="card">
+                <div class="card-icon" style="background:rgba(37,99,235,0.1);color:var(--accent);">!</div>
+                <h3>需求无法准确传递</h3>
+                <p>需求方描述的是业务意图，AI 需要的是可执行的技术任务，翻译偏差以 bug 形式重现</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 4: ROOT CAUSE
+     =========================================== -->
+<section class="slide slide-dark" data-slide="3">
+    <div class="shape shape-blue" style="width:500px;height:500px;top:-150px;left:-150px;opacity:0.05;"></div>
+    <div class="slide-content" style="align-items:center;text-align:center;">
+        <div class="eyebrow reveal">本质</div>
+        <div class="quote-block reveal" style="color:#fff;max-width:700px;border-left-color:#60a5fa;">
+            AI 的失败从来不是能力不足，<br>而是<span style="color:#60a5fa;">上下文不足</span>。
+        </div>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 5: TWO TOOLS
+     =========================================== -->
+<section class="slide" data-slide="4">
+    <div class="slide-content">
+        <div class="eyebrow reveal">解决方案</div>
+        <h2 class="reveal">两个工具，<span class="highlight">各司其职</span></h2>
+        <div class="divider reveal"></div>
+        <div class="grid-2 reveal" style="margin-top:var(--content-gap);">
+            <div class="card">
+                <div class="card-icon" style="background:rgba(16,185,129,0.1);color:var(--green);">G</div>
+                <h3>GSD <span class="tag-green tag" style="font-size:0.6em;vertical-align:middle;">需求上下文</span></h3>
+                <p>通过结构化问询将模糊意图转化为分阶段执行计划，在每阶段执行前对齐方案、执行后验证</p>
+            </div>
+            <div class="card">
+                <div class="card-icon" style="background:var(--accent-light);color:var(--accent);">C</div>
+                <h3>CGW <span class="tag" style="font-size:0.6em;vertical-align:middle;">代码上下文</span></h3>
+                <p>对代码库构建知识图谱与向量索引，精准回答「该调哪个接口、调用者是谁、前置条件是什么」</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 6: CONTEXT TYPES
+     =========================================== -->
+<section class="slide" data-slide="5">
+    <div class="slide-content" style="align-items:center;text-align:center;">
+        <div class="eyebrow reveal">上下文缺一不可</div>
+        <h2 class="reveal" style="margin-bottom:var(--content-gap);">三类上下文</h2>
+        <div class="grid-3 reveal">
+            <div class="card" style="text-align:center;">
+                <div style="font-size:clamp(1.5rem,3vw,2rem);margin-bottom:0.5rem;">&#x1F4CB;</div>
+                <h3>需求上下文</h3>
+                <p>方向对不对？<br><strong style="color:var(--green);">GSD</strong> 负责</p>
+            </div>
+            <div class="card" style="text-align:center;">
+                <div style="font-size:clamp(1.5rem,3vw,2rem);margin-bottom:0.5rem;">&#x1F9E9;</div>
+                <h3>代码上下文</h3>
+                <p>方式对不对？<br><strong style="color:var(--accent);">CGW</strong> 负责</p>
+            </div>
+            <div class="card" style="text-align:center;">
+                <div style="font-size:clamp(1.5rem,3vw,2rem);margin-bottom:0.5rem;">&#x1F3A8;</div>
+                <h3>风格上下文</h3>
+                <p>产出能合入吗？<br><strong style="color:var(--green);">GSD 执行器</strong> 负责</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 7: CGW OVERVIEW
+     =========================================== -->
+<section class="slide" data-slide="6">
+    <div class="slide-content">
+        <div class="eyebrow reveal">CodeGraphWiki</div>
+        <h2 class="reveal">CGW 如何构建<span class="highlight">代码上下文</span></h2>
+        <div class="divider reveal"></div>
+        <div class="grid-2 reveal" style="margin-top:var(--content-gap);">
+            <div class="card" style="text-align:center;">
+                <h3 style="color:var(--accent);">离线建图</h3>
+                <p>一次索引，三层数据构建<br>符号 → 关系 → 文档</p>
+            </div>
+            <div class="card" style="text-align:center;">
+                <h3 style="color:var(--green);">运行时查询</h3>
+                <p>按需投递，不占主会话窗口<br>增量更新，始终同步</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 8: LAYER 1
+     =========================================== -->
+<section class="slide" data-slide="7">
+    <div class="slide-content">
+        <div class="eyebrow reveal">离线建图 · 第一层</div>
+        <h2 class="reveal">提取函数与结构体</h2>
+        <div class="divider reveal"></div>
+        <div class="two-col reveal">
+            <div>
+                <ul class="bullet-list">
+                    <li>使用 <strong>Tree-sitter</strong> 解析 AST</li>
+                    <li>不需要编译、不需要链接</li>
+                    <li>提取函数签名、结构体、宏、枚举</li>
+                    <li>每个符号成为图中的一个节点</li>
+                </ul>
+            </div>
+            <div class="code-block">
+                <div class="code-header">Tree-sitter AST 解析</div>
+                <span class="comment">// 输入: 源文件</span><br>
+                <span class="keyword">int</span> <span class="fn">pv_short</span>(<span class="type">uint8_t</span>, <span class="type">pv_protect_cfg_t</span> *)<br>
+                <span class="keyword">struct</span> <span class="type">pv_protect_cfg_t</span> { ... }<br>
+                <span class="keyword">#define</span> <span class="fn">PV_SHORT_THRESHOLD</span> <span class="number">15</span><br><br>
+                <span class="comment">// 输出: 知识图谱节点</span><br>
+                <span class="string">→ 3 个节点已入图</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 9: LAYER 2
+     =========================================== -->
+<section class="slide" data-slide="8">
+    <div class="slide-content">
+        <div class="eyebrow reveal">离线建图 · 第二层</div>
+        <h2 class="reveal">整理调用关系</h2>
+        <div class="divider reveal"></div>
+        <div class="two-col reveal">
+            <div>
+                <ul class="bullet-list">
+                    <li><strong>顺向查询：</strong>函数会调用哪些下游？</li>
+                    <li><strong>逆向查询：</strong>函数被哪些地方调用？</li>
+                    <li>追踪函数指针的间接调用</li>
+                    <li>有向边 A → B 表示调用</li>
+                </ul>
+            </div>
+            <div class="code-block" style="text-align:center;padding:clamp(1rem,2vw,2rem);">
+                <div style="color:#93c5fd;">power_ctrl_loop()</div>
+                <div style="color:#6b7280;margin:0.3em 0;">↓</div>
+                <div style="color:#fbbf24;">pv_short()</div>
+                <div style="color:#6b7280;margin:0.3em 0;">↓ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ↓</div>
+                <div style="display:flex;justify-content:center;gap:2em;">
+                    <span style="color:#86efac;">inverter_shutdown()</span>
+                    <span style="color:#86efac;">fault_record()</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 10: LAYER 3
+     =========================================== -->
+<section class="slide" data-slide="9">
+    <div class="slide-content">
+        <div class="eyebrow reveal">离线建图 · 第三层</div>
+        <h2 class="reveal">API 文档 + <span class="highlight">LLM 增强</span></h2>
+        <div class="divider reveal"></div>
+        <div class="grid-2 reveal" style="margin-top:var(--content-gap);">
+            <div class="card">
+                <h3>静态提取</h3>
+                <p>函数签名、参数类型、返回值、注释、调用者与依赖列表 —— 机械的、精确的</p>
+            </div>
+            <div class="card" style="border-color:var(--accent);border-width:2px;">
+                <h3 style="color:var(--accent);">LLM 增强 ✦</h3>
+                <p><strong>功能描述：</strong>用自然语言说明函数在系统中的作用<br><strong>调用前置条件：</strong>调用前必须完成哪些初始化</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 11: LLM ENHANCED EXAMPLE
+     =========================================== -->
+<section class="slide slide-dark" data-slide="10">
+    <div class="slide-content">
+        <div class="eyebrow reveal">LLM 增强示例</div>
+        <h2 class="reveal" style="margin-bottom:var(--content-gap);">pv_short</h2>
+        <div class="code-block reveal" style="font-size:var(--code-size);">
+            <span class="fn">pv_short</span>(<span class="type">uint8_t</span> string_id, <span class="type">pv_protect_cfg_t</span> *cfg) → <span class="keyword">int</span><br><br>
+            <span class="string">【功能描述】</span><br>
+            检测指定 PV 组串是否发生短路。若电流超过阈值，<br>
+            触发保护动作：断开对应组串继电器并记录故障。<br><br>
+            <span class="string">【调用前置条件】</span><br>
+            <span class="number">1.</span> adc_init() 已执行且 adc_calibrated() 返回 true<br>
+            <span class="number">2.</span> relay_driver_init() 已完成，继电器处于可控状态<br>
+            <span class="number">3.</span> 不得在 MPPT 扫描周期内调用，避免瞬态电流误判<br><br>
+            <span class="comment">// 调用者: power_ctrl_loop(), startup_self_check()</span>
+        </div>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 12: WHY PRECONDITIONS MATTER
+     =========================================== -->
+<section class="slide" data-slide="11">
+    <div class="slide-content" style="align-items:center;text-align:center;">
+        <div class="eyebrow reveal">核心价值</div>
+        <div class="quote-block reveal" style="max-width:650px;">
+            函数签名告诉 AI「能调什么」，<br>
+            前置条件告诉它「<span class="highlight">调之前必须先做什么</span>」。
+        </div>
+        <p class="reveal" style="margin-top:var(--content-gap);max-width:550px;">
+            逆变器功率软件中，前置条件错误是最危险的一类 bug —— ADC 未校准就做短路检测，
+            阈值判断全部失效，轻则误触发停机，重则短路保护失灵。把隐性知识变成显式上下文，是 LLM 增强的核心意义。
+        </p>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 13: API-FIND
+     =========================================== -->
+<section class="slide" data-slide="12">
+    <div class="slide-content">
+        <div class="eyebrow reveal">关键能力</div>
+        <h2 class="reveal"><span class="highlight">api-find</span>：精准的上下文投递</h2>
+        <div class="divider reveal"></div>
+        <div class="two-col reveal">
+            <div>
+                <p style="margin-bottom:var(--element-gap);"><strong>传统方式：</strong>粘贴文件 → 覆盖不完整 + 精度不够</p>
+                <p><strong>api-find：</strong>用意图查询 → 得到精准上下文 → 再写代码</p>
+                <ul class="bullet-list" style="margin-top:var(--element-gap);">
+                    <li><strong>图谱查询</strong>：关键词匹配 + 调用关系追踪</li>
+                    <li><strong>语义检索</strong>：向量相似度，名称不同也能命中</li>
+                </ul>
+            </div>
+            <div class="code-block">
+                <div class="code-header">/code-graph:api-find</div>
+                <span class="string">"PV short circuit protection"</span><br><br>
+                <span class="fn">→ 找到 3 个匹配接口</span><br>
+                <span class="comment">  pv_short()</span><br>
+                <span class="comment">  inverter_shutdown()</span><br>
+                <span class="comment">  fault_record()</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 14: API-FIND RESULT
+     =========================================== -->
+<section class="slide slide-dark" data-slide="13">
+    <div class="slide-content">
+        <div class="eyebrow reveal">api-find 返回结果</div>
+        <h2 class="reveal" style="margin-bottom:var(--content-gap);">每个结果 = <span style="color:#60a5fa;">可执行的上下文</span></h2>
+        <div class="grid-3 reveal">
+            <div class="card">
+                <h3 style="font-size:var(--body-size);">函数签名 + 位置</h3>
+                <p>精确到文件路径和行号<br><code style="color:#60a5fa;font-size:0.85em;">src/protect/pv_short.c:89</code></p>
+            </div>
+            <div class="card">
+                <h3 style="font-size:var(--body-size);">调用者列表</h3>
+                <p>修改时需要纳入验证的所有调用点</p>
+            </div>
+            <div class="card">
+                <h3 style="font-size:var(--body-size);">LLM 增强字段</h3>
+                <p>功能描述 + 调用前置条件</p>
+            </div>
+        </div>
+        <p class="reveal" style="margin-top:var(--content-gap);text-align:center;font-size:var(--small-size);">
+            调用者列表：影响范围从「单点」→「全局」&nbsp;&nbsp;|&nbsp;&nbsp;前置条件：上下文从「现在」→「之前」
+        </p>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 15: EXECUTION FLOW
+     =========================================== -->
+<section class="slide" data-slide="14">
+    <div class="slide-content" style="align-items:center;">
+        <div class="eyebrow reveal">执行流程</div>
+        <h2 class="reveal" style="margin-bottom:var(--content-gap);">没有上下文，<span class="highlight">不生成代码</span></h2>
+        <div class="flow reveal">
+            <div class="flow-step">GSD 生成任务</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step active">api-find 查询</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">读取目标文件</div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">生成代码</div>
+        </div>
+        <p class="reveal" style="margin-top:var(--content-gap);text-align:center;max-width:500px;">
+            这个顺序是<strong>强制的</strong>。api-find 在代码生成之前插入一个强制步骤，确保 AI 手握完整上下文再动笔。
+        </p>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 16: PRACTICAL EXAMPLE - GSD
+     =========================================== -->
+<section class="slide" data-slide="15">
+    <div class="slide-content">
+        <div class="eyebrow reveal">实战演示 · 绝缘阻抗检测</div>
+        <h2 class="reveal">Step 1：建立需求上下文</h2>
+        <div class="divider reveal"></div>
+        <div class="convo reveal" style="margin-top:var(--content-gap);max-width:650px;">
+            <div class="convo-item">
+                <span class="convo-label gsd">GSD</span>
+                <span class="convo-text">绝缘检测在什么时机触发？开机前还是运行中？</span>
+            </div>
+            <div class="convo-item">
+                <span class="convo-label dev">Dev</span>
+                <span class="convo-text">开机前必检，运行中每 30 分钟复检一次。</span>
+            </div>
+            <div class="convo-item">
+                <span class="convo-label gsd">GSD</span>
+                <span class="convo-text">检测到绝缘故障后的动作是什么？</span>
+            </div>
+            <div class="convo-item">
+                <span class="convo-label dev">Dev</span>
+                <span class="convo-text">立即停机，上报故障码，等待手动复位。</span>
+            </div>
+            <div class="convo-item">
+                <span class="convo-label gsd">GSD</span>
+                <span class="convo-text">明确了。约束：复用现有保护框架、开机+周期双触发、停机后锁定。生成计划。</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 17: PRACTICAL EXAMPLE - CGW
+     =========================================== -->
+<section class="slide" data-slide="16">
+    <div class="slide-content">
+        <div class="eyebrow reveal">实战演示 · 绝缘阻抗检测</div>
+        <h2 class="reveal">Step 2 & 3：代码 + 风格上下文</h2>
+        <div class="divider reveal"></div>
+        <div class="two-col reveal">
+            <div>
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:var(--element-gap);">
+                    <span class="step-num">2</span>
+                    <h3>CGW api-find</h3>
+                </div>
+                <div class="code-block" style="margin-bottom:var(--element-gap);">
+                    <span class="string">/code-graph:api-find "PV short circuit"</span><br>
+                    <span class="string">/code-graph:api-find "inverter shutdown"</span>
+                </div>
+                <p style="font-size:var(--small-size);">获取真实接口签名、调用关系、前置条件</p>
+            </div>
+            <div>
+                <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:var(--element-gap);">
+                    <span class="step-num">3</span>
+                    <h3>风格 + 生成</h3>
+                </div>
+                <ul class="bullet-list">
+                    <li>读取目标文件，观察命名规范</li>
+                    <li>匹配注释格式、错误处理模式</li>
+                    <li>三类上下文到位，在已知边界内生成</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===========================================
+     SLIDE 18: CONCLUSION
+     =========================================== -->
+<section class="slide slide-dark" data-slide="17">
+    <div class="shape shape-blue" style="width:600px;height:600px;bottom:-200px;right:-200px;opacity:0.04;"></div>
+    <div class="slide-content" style="align-items:center;text-align:center;">
+        <div class="eyebrow reveal">总结</div>
+        <h2 class="reveal" style="max-width:700px;margin-bottom:var(--content-gap);">
+            上下文越充分，<br>模型越强，<span style="color:#60a5fa;">产出质量越高</span>
+        </h2>
+        <div class="grid-3 reveal" style="max-width:750px;margin-bottom:var(--content-gap);">
+            <div class="card" style="text-align:center;">
+                <h3 style="font-size:var(--body-size);">需求上下文</h3>
+                <p>GSD 结构化问询</p>
+            </div>
+            <div class="card" style="text-align:center;">
+                <h3 style="font-size:var(--body-size);">代码上下文</h3>
+                <p>CGW + api-find</p>
+            </div>
+            <div class="card" style="text-align:center;">
+                <h3 style="font-size:var(--body-size);">风格上下文</h3>
+                <p>执行前读文件学规范</p>
+            </div>
+        </div>
+        <p class="reveal" style="font-size:var(--small-size);max-width:550px;">
+            这套机制不依赖于某个模型版本的能力上限。在上下文充分的前提下，即便是今天的模型，也足以完成大多数存量代码库的功能扩展任务。
+        </p>
+    </div>
+</section>
+
+<!-- ===========================================
+   JAVASCRIPT: Slide Presentation Controller
+   =========================================== -->
+<script>
+    class SlidePresentation {
+        constructor() {
+            this.slides = document.querySelectorAll('.slide');
+            this.totalSlides = this.slides.length;
+            this.currentIndex = 0;
+            this.isTransitioning = false;
+
+            document.getElementById('totalSlides').textContent =
+                String(this.totalSlides).padStart(2, '0');
+
+            this.createNavDots();
+            this.setupIntersectionObserver();
+            this.setupKeyboardNav();
+            this.setupTouchNav();
+            this.setupWheelNav();
+            this.updateUI();
+        }
+
+        /* --- Navigation Dots --- */
+        createNavDots() {
+            const nav = document.getElementById('navDots');
+            this.slides.forEach((_, i) => {
+                const dot = document.createElement('button');
+                dot.className = 'nav-dot';
+                dot.setAttribute('aria-label', `Go to slide ${i + 1}`);
+                dot.addEventListener('click', () => this.goToSlide(i));
+                nav.appendChild(dot);
+            });
+            this.dots = nav.querySelectorAll('.nav-dot');
+        }
+
+        /* --- Intersection Observer for scroll-triggered animations --- */
+        setupIntersectionObserver() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        const index = parseInt(entry.target.dataset.slide);
+                        if (!isNaN(index)) {
+                            this.currentIndex = index;
+                            this.updateUI();
+                        }
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            this.slides.forEach(slide => observer.observe(slide));
+        }
+
+        /* --- Keyboard Navigation --- */
+        setupKeyboardNav() {
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
+                    e.preventDefault();
+                    this.nextSlide();
+                } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    this.prevSlide();
+                } else if (e.key === 'Home') {
+                    e.preventDefault();
+                    this.goToSlide(0);
+                } else if (e.key === 'End') {
+                    e.preventDefault();
+                    this.goToSlide(this.totalSlides - 1);
+                }
+            });
+        }
+
+        /* --- Touch / Swipe Navigation --- */
+        setupTouchNav() {
+            let startY = 0;
+            document.addEventListener('touchstart', (e) => {
+                startY = e.touches[0].clientY;
+            }, { passive: true });
+
+            document.addEventListener('touchend', (e) => {
+                const diff = startY - e.changedTouches[0].clientY;
+                if (Math.abs(diff) > 50) {
+                    diff > 0 ? this.nextSlide() : this.prevSlide();
+                }
+            }, { passive: true });
+        }
+
+        /* --- Mouse Wheel Navigation --- */
+        setupWheelNav() {
+            let timeout;
+            document.addEventListener('wheel', (e) => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    if (e.deltaY > 30) this.nextSlide();
+                    else if (e.deltaY < -30) this.prevSlide();
+                }, 50);
+            }, { passive: true });
+        }
+
+        /* --- Navigation Methods --- */
+        nextSlide() {
+            if (this.currentIndex < this.totalSlides - 1) {
+                this.goToSlide(this.currentIndex + 1);
+            }
+        }
+
+        prevSlide() {
+            if (this.currentIndex > 0) {
+                this.goToSlide(this.currentIndex - 1);
+            }
+        }
+
+        goToSlide(index) {
+            if (index < 0 || index >= this.totalSlides) return;
+            this.currentIndex = index;
+            this.slides[index].scrollIntoView({ behavior: 'smooth' });
+            this.updateUI();
+        }
+
+        /* --- UI Updates --- */
+        updateUI() {
+            // Progress bar
+            const progress = ((this.currentIndex + 1) / this.totalSlides) * 100;
+            document.getElementById('progressBar').style.width = `${progress}%`;
+
+            // Slide counter
+            document.getElementById('currentSlide').textContent =
+                String(this.currentIndex + 1).padStart(2, '0');
+
+            // Nav dots
+            this.dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === this.currentIndex);
+            });
+
+            // Dark slide adjustments for counter / progress
+            const isDark = this.slides[this.currentIndex].classList.contains('slide-dark');
+            const counter = document.querySelector('.slide-counter');
+            const progressBar = document.getElementById('progressBar');
+            if (isDark) {
+                counter.style.color = '#6b7280';
+                counter.querySelector('.current').style.color = '#60a5fa';
+                progressBar.style.background = '#60a5fa';
+            } else {
+                counter.style.color = '';
+                counter.querySelector('.current').style.color = '';
+                progressBar.style.background = '';
+            }
+        }
+    }
+
+    /* Initialize on DOM ready */
+    document.addEventListener('DOMContentLoaded', () => {
+        new SlidePresentation();
+    });
+</script>
+</body>
+</html>
